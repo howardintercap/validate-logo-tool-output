@@ -1,12 +1,20 @@
-const resultQueue: Record<string, unknown>[] = [];
+const resultStore = new Map<string, any[]>();
 
-export function enqueueResult(payload: Record<string, unknown>) {
-  resultQueue.push(payload);
+export function enqueueResult(
+  traceId: string,
+  payload: Record<string, unknown>
+) {
+  const existing = resultStore.get(traceId) ?? [];
+  existing.push(payload);
+  resultStore.set(traceId, existing);
 }
 
-export function dequeueResult() {
-  return resultQueue.shift() ?? null;
+export function dequeueResult(traceId: string) {
+  const results = resultStore.get(traceId) ?? [];
+  resultStore.delete(traceId);
+  return results.length > 0 ? results : null;
 }
-// use middleware and trace id
-// events poll
-// pool events together
+
+export function getResultsForTrace(traceId: string) {
+  return resultStore.get(traceId) ?? [];
+}
