@@ -51,17 +51,18 @@ export default function Home() {
     function pollResult(expectedCount: number) {
         let attempts = 0;
         const maxAttempts = 60;
-        const collected: string[] = [];
+        const seenIds = new Set<string>();
         const interval = setInterval(async () => {
             attempts++;
             try {
                 const res = await fetch("/api/result");
                 const data = await res.json();
+                const id = data?.id;
                 const url = getImageUrl(data);
-                if (url) {
-                    collected.push(url);
+                if (url && id && !seenIds.has(id)) {
+                    seenIds.add(id);
                     setLogoUrls((prev) => [...prev, url]);
-                    if (collected.length >= expectedCount) {
+                    if (seenIds.size >= expectedCount) {
                         setIsGenerating(false);
                         clearInterval(interval);
                         return;
@@ -81,16 +82,22 @@ export default function Home() {
         e.preventDefault();
         setLogoUrls([]);
         setIsGenerating(true);
+        const input = {
+            business_name: businessName,
+            business_type: industry,
+            style: logoStyle,
+            color_scheme: colorScheme,
+            additional_elements: additionalDetails,
+        };
         try {
             const data = USE_MOCK_API
                 ? MOCK_RESPONSES
-                : await generateLogo({
-                    business_name: businessName,
-                    business_type: industry,
-                    style: logoStyle,
-                    color_scheme: colorScheme,
-                    additional_elements: additionalDetails,
-                });
+                : await Promise.all([
+                    generateLogo(input),
+                    generateLogo(input),
+                    generateLogo(input),
+                    generateLogo(input),
+                ]);
             const items = Array.isArray(data) ? data : data ? [data] : [];
             const urls = items.map(getImageUrl).filter((u): u is string => !!u);
             if (urls.length === 4) {
@@ -107,7 +114,6 @@ export default function Home() {
     return (
         <main className="logo-page">
             <div className="logo-page__container">
-                <h1 className="logo-page__title">Logo brief</h1>
                 <form className="logo-page__form" onSubmit={handleSubmit}>
                     <div className="logo-page__field">
                         <label htmlFor="business-name" className="logo-page__label">
